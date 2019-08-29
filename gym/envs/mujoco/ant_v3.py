@@ -32,6 +32,8 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._contact_force_range = contact_force_range
 
         self._reset_noise_scale = reset_noise_scale
+        self.step_violation = 0
+        self.total_violation = 0
 
         self._exclude_current_positions_from_observation = (
             exclude_current_positions_from_observation)
@@ -80,14 +82,22 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         xy_position_before = self.get_body_com("torso")[:2].copy()
         self.do_simulation(action, self.frame_skip)
         xy_position_after = self.get_body_com("torso")[:2].copy()
-
+        observation = self._get_obs()
+        
         xy_velocity = (xy_position_after - xy_position_before) / self.dt
         x_velocity, y_velocity = xy_velocity
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
 
-        forward_reward = x_velocity
+        #forward_reward = x_velocity
+        if(abs(observation[1]) <= 2):
+            forward_reward = x_velocity
+        else:
+            forward_reward = -30*abs(observation[1])
+        if(abs(observation[1]) > 5):
+            self.step_violation += 1
+            self.total_violation += 1
         healthy_reward = self.healthy_reward
 
         rewards = forward_reward + healthy_reward
@@ -95,7 +105,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         reward = rewards - costs
         done = self.done
-        observation = self._get_obs()
+        
         info = {
             'reward_forward': forward_reward,
             'reward_ctrl': -ctrl_cost,
@@ -117,17 +127,27 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         position = self.sim.data.qpos.flat.copy()
         velocity = self.sim.data.qvel.flat.copy()
         contact_force = self.contact_forces.flat.copy()
+        # print('nq')
+        # print(self.model.nq) 15
+        # print('nv')
+        # print(self.model.nv)  14
 
-        if self._exclude_current_positions_from_observation:
-            position = position[2:]
+        # if self._exclude_current_positions_from_observation:
+        #     position = position[2:]
 
         observations = np.concatenate((position, velocity, contact_force))
 
         return observations
 
     def reset_model(self):
+        self.step_violation = 0
         noise_low = -self._reset_noise_scale
         noise_high = self._reset_noise_scale
+        self.init_qpos[1] = np.random.uniform(-4,-3)
+        # if(np.random.uniform(-1,1) >= 0):
+        #     self.init_qpos[1] = np.random.uniform(-4,-3)
+        # else:
+        #     self.init_qpos[1] = - np.random.uniform(-4,-3)
 
         qpos = self.init_qpos + self.np_random.uniform(
             low=noise_low, high=noise_high, size=self.model.nq)
@@ -145,3 +165,16 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 getattr(self.viewer.cam, key)[:] = value
             else:
                 setattr(self.viewer.cam, key, value)
+
+    def cost_fn(self,states, actions, next_states):
+        return 3*abs(states[:,1])
+
+    def choice_cost_func(self,states, actions, next_states):
+        cost = 0
+        if(abs(next_states[1]) <= 2):
+            cost = -(next_states[0] - states[0])/self.dt
+        else:
+            cost = 30*abs(next_states[1])
+        return cost
+        
+
