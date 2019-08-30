@@ -11,14 +11,14 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def step(self, a):
         vec = self.get_body_com("fingertip")-self.get_body_com("target")
-        # reward_dist = - np.linalg.norm(vec)
-        # reward_ctrl = - np.square(a).sum()
+        reward_dist = - np.linalg.norm(vec)
+        reward_ctrl = - np.square(a).sum()
         # reward = reward_dist + reward_ctrl
         pre_ob = self._get_obs()
         reward = - np.linalg.norm(vec)
         if(pre_ob[1] > 0):
             reward = reward - 100/abs(pre_ob[0])
-        if(pre_ob[1] > 0 and abs(pre_obs[0]) < 0.09):
+        if(pre_ob[1] > 0 and abs(pre_ob[0]) < 0.09):
             self.step_violation += 1
             self.total_violation += 1
         self.do_simulation(a, self.frame_skip)
