@@ -24,7 +24,7 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        return ob, reward, done, self.step_violation
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
@@ -33,12 +33,13 @@ class ReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.step_violation = 0
         qpos = self.np_random.uniform(low=-0.1, high=0.1, size=self.model.nq) + self.init_qpos
         qpos[0] = np.pi/6 + self.np_random.uniform(low=-0.1, high=0.1)
+        #qpos = self.np_random.uniform(low=-np.pi, high=np.pi, size=self.model.nq) + self.init_qpos
         while True:
             self.goal = self.np_random.uniform(low=-.2, high=.2, size=2)
             if np.linalg.norm(self.goal) < 0.2:
                 break
-        self.goal[0] = np.random.uniform(-0.2,0)
-        self.goal[1] = np.random.uniform(-0.1,0)
+        self.goal[0] = np.random.uniform(-0.12,-0.08)
+        self.goal[1] = np.random.uniform(-0.12,-0.08)
         qpos[-2:] = self.goal
         qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
         qvel[-2:] = 0
