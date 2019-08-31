@@ -121,7 +121,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             'forward_reward': forward_reward,
         }
 
-        return observation, reward, done, info
+        return observation, reward, done, self.step_violation
 
     def _get_obs(self):
         position = self.sim.data.qpos.flat.copy()
